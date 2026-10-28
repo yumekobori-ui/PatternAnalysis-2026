@@ -128,7 +128,7 @@ def main(args):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--model", type=str, default="unet2d", choices=["unet2d", "improved"])
+    p.add_argument("--model", type=str, default="unet2d", choices=["unet2d"])
     p.add_argument("--epochs", type=int, default=30)
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--lr", type=float, default=1e-3)
