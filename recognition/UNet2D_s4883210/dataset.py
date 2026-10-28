@@ -5,6 +5,8 @@ import nibabel as nib
 from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torchvision.transforms.functional import resize as tv_resize
+from torchvision.transforms import InterpolationMode
 
 BASE = "/home/groups/comp3710/HipMRI_Study_open/keras_slices_data"
 
@@ -107,6 +109,11 @@ class HipMRIDataset(Dataset):
 
         img = torch.from_numpy(img).unsqueeze(0)
         lbl = torch.from_numpy(lbl).permute(2, 0, 1).float()
+
+        # resize every slice to (256, 128) so the dataloader can stack them
+        if img.shape[-2:] != (256, 128):
+            img = tv_resize(img, [256, 128], antialias=True)
+            lbl = tv_resize(lbl, [256, 128], interpolation=InterpolationMode.NEAREST)
 
         return img, lbl
 
