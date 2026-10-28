@@ -15,15 +15,16 @@ SPLITS = {
 }
 
 NUM_CLASSES = 6
-IMG_SIZE = 512
+IMG_SIZE = (256, 128)
 
-def to_channels (arr: np. ndarray, dtype=np. uint8) -> np. ndarray:
-    channels = np.unique(arr)
-    res = np. zeros (arr.shape + (len(channels),), dtype=dtype)
-    for c in channels :
-        c = int(c)
-        res[..., c:c+1][ arr == c] = 1
 
+def to_channels(arr: np.ndarray, num_classes: int = NUM_CLASSES,
+                dtype=np.uint8) -> np.ndarray:
+    """Converts label image into a one-hot tensor"""
+    arr = np.round(arr).astype(np.int64)
+    res = np.zeros(arr.shape + (num_classes,), dtype=dtype)
+    for c in range(num_classes):
+        res[..., c][arr == c] = 1
     return res
 
 # load medical image functions
@@ -58,7 +59,7 @@ def load_data_2D (imageNames, normImage=False, categorical=False, dtype =np.floa
             inImage = inImage[: ,: ,0] # sometimes extra dims in HipMRI_study data
         inImage = inImage.astype(dtype)
         if normImage :
-            inImage = (inImage - inImage.mean ()) / (inImage.std() + 1e-8)
+            inImage = (inImage - inImage.mean()) / (inImage.std() + 1e-8)
         if categorical :
             inImage = to_channels(inImage, dtype=dtype)
             images[i ,: ,: ,:] = inImage
@@ -73,3 +74,75 @@ def load_data_2D (imageNames, normImage=False, categorical=False, dtype =np.floa
     else :
         return images
 
+def _suffix(fname: str) -> str:
+    i = next(k for k, ch in enumerate(fname) if ch.isdigit())
+    return fname[i:]
+
+def pair_paths(image_dir, label_dir):
+    """Match each MRI image with its segmentation label"""
+    labels = {_suffix(os.path.basename(p)): p 
+              for p in glob.glob(os.path.join(label_dir, "*.nii.gz"))}
+    pairs = []
+    for ip in sorted(glob.glob(os.path.join(image_dir, "*.nii.gz"))):
+        key = _suffix(os.path.basename(ip))
+        if key in labels:
+            pairs.append((ip, labels[key]))
+    
+    return pairs
+
+class HipMRIDataset(Dataset):
+    def __init__(self, pairs):
+        self.pairs = pairs
+
+    def __len__(self):
+        return len(self.pairs)
+
+    def __getitem__(self, idx):
+        ip, lp = self.pairs[idx]
+
+        # load 1 image and 1 label at a time
+        img = load_data_2D([ip], normImage=True, categorical=False)[0]
+        lbl = load_data_2D([lp], normImage=False, categorical=True,
+                           dtype=np.uint8)[0] 
+
+        img = torch.from_numpy(img).unsqueeze(0)
+        lbl = torch.from_numpy(lbl).permute(2, 0, 1).float()
+
+        return img, lbl
+
+
+def build_dataloaders(batch_size=8, num_workers=4):
+    loaders = {}
+    for name, (img_d, lbl_d) in SPLITS.items():
+        pairs = pair_paths(os.path.join(BASE, img_d), os.path.join(BASE, lbl_d))
+
+        loaders[name] = DataLoader(
+            HipMRIDataset(pairs),
+            batch_size=batch_size,
+            shuffle=(name == "train"),
+            num_workers=num_workers,
+            pin_memory=True,
+        )
+
+        print(f"{name}: {len(pairs)} paired slices")
+
+    return loaders
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    loaders = build_dataloaders(batch_size=4, num_workers=2)
+    imgs, lbls = next(iter(loaders["train"]))
+    print("image batch:", imgs.shape, imgs.dtype)
+    print("label batch:", lbls.shape, lbls.dtype,
+          "sum per sample:", lbls[0].sum(dim=(1,2)))
+
+    img = imgs[0, 0].numpy()
+    lbl = lbls[0].argmax(0).numpy()
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    ax[0].imshow(img, cmap="gray"); ax[0].set_title("image (normalised)")
+    ax[1].imshow(lbl, cmap="tab10", vmin=0, vmax=NUM_CLASSES - 1)
+    ax[1].set_title("label")
+    plt.tight_layout()
+    plt.savefig("/tmp/test_overlay.png", dpi=100)
+    print("saved /tmp/test_overlay.png")
