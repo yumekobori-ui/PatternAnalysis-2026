@@ -1,0 +1,29 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# PyTorch model weights
+*.pth
+*.pt
+*.ckpt
+
+# Training outputs
+logs/
+runs/
+
+# Environments
+venv/
+.venv/
+env/
+.conda/
+
+# Data
+*.nii
+*.nii.gz
+
+# macOS junk
+.DS_Store
+
+# IDE
+.vscode/
+.ipynb_checkpoints/
