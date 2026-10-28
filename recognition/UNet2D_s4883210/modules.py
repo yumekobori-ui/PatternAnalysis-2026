@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # Baseline 2D U-Net
 
 class StandardBlock(nn.Module):
-    """Standard conv -> ReLU -> conv -> ReLU block."""
+    """Standard 3 x 3 conv -> ReLU -> 3 x 3conv -> ReLU block."""
     def __init__(self, in_ch, out_ch):
         super().__init__()
         self.conv = nn.Sequential(
@@ -27,16 +27,16 @@ class UNet2D(nn.Module):
         self.ups = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Contracting path
+        # contracting path
         c = in_channels
         for f in features:
             self.downs.append(StandardBlock(c, f))
             c = f
 
-        # Bottleneck
+        # bottleneck
         self.bottleneck = StandardBlock(features[-1], features[-1] * 2)
 
-        # Expansive path
+        # expansive path
         for f in reversed(features):
             self.ups.append(nn.ConvTranspose2d(f * 2, f, kernel_size=2, stride=2))
             self.ups.append(StandardBlock(f * 2, f))

@@ -144,5 +144,6 @@ if __name__ == "__main__":
     ax[1].imshow(lbl, cmap="tab10", vmin=0, vmax=NUM_CLASSES - 1)
     ax[1].set_title("label")
     plt.tight_layout()
-    plt.savefig("/tmp/test_overlay.png", dpi=100)
-    print("saved /tmp/test_overlay.png")
+    out = os.path.expanduser("~/test_overlay.png")
+    plt.savefig(out, dpi=100)
+    print(f"saved {out}")
