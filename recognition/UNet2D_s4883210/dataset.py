@@ -19,6 +19,17 @@ SPLITS = {
 NUM_CLASSES = 6
 IMG_SIZE = (256, 128)
 
+CLASS_COLORS = np.array([
+    [0.0, 0.0, 0.0], # 0 background, black
+    [0.5, 0.5, 0.5], # 1 body, grey
+    [1.0, 1.0, 1.0], # 2 bone, white
+    [1.0, 0.0, 0.0], # 3 bladder, red
+    [0.0, 1.0, 0.0], # 4 rectum, green
+    [0.0, 0.0, 1.0],  # 5 prostate, blue
+])
+
+def mask_to_rgb(mask):
+    return CLASS_COLORS[mask]
 
 def to_channels(arr: np.ndarray, num_classes: int = NUM_CLASSES,
                 dtype=np.uint8) -> np.ndarray:
@@ -147,9 +158,11 @@ if __name__ == "__main__":
     img = imgs[0, 0].numpy()
     lbl = lbls[0].argmax(0).numpy()
     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+
     ax[0].imshow(img, cmap="gray"); ax[0].set_title("image (normalised)")
-    ax[1].imshow(lbl, cmap="tab10", vmin=0, vmax=NUM_CLASSES - 1)
+    ax[1].imshow(mask_to_rgb(lbl))
     ax[1].set_title("label")
+
     plt.tight_layout()
     out = os.path.expanduser("~/test_overlay.png")
     plt.savefig(out, dpi=100)
