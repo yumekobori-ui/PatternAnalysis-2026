@@ -21,7 +21,7 @@ CLASS_COLORS = np.array([
     [1.0, 1.0, 1.0], # 2 bone, white
     [1.0, 0.0, 0.0], # 3 bladder, red
     [0.0, 1.0, 0.0], # 4 rectum, green
-    [0.0, 0.0, 1.0],  # 5 prostate, blue
+    [0.0, 0.0, 1.0], # 5 prostate, blue
 ])
 
 def mask_to_rgb(mask):
