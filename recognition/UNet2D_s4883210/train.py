@@ -10,7 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from dataset import build_dataloaders, NUM_CLASSES
-from modules import UNet2D
+from modules import UNet2D, ImprovedUNet2D
 
 # class frequencies measured on the training split for every 10th sample
 CLASS_FREQS = np.array([0.1748, 0.6700, 0.1285, 0.0183, 0.0037, 0.0047])
@@ -72,6 +72,9 @@ def main(args):
 
     if args.model == "unet2d":
         model = UNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
+    elif args.model == "improved_unet2d":
+        model = ImprovedUNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
+
     else:
         raise ValueError(f"unknown model: {args.model}")
 
@@ -128,7 +131,7 @@ def main(args):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--model", type=str, default="unet2d", choices=["unet2d"])
+    p.add_argument("--model", type=str, default="unet2d", choices=["unet2d", "improved_unet2d"])
     p.add_argument("--epochs", type=int, default=30)
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--lr", type=float, default=1e-3)
