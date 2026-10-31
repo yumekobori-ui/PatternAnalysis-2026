@@ -61,8 +61,11 @@ def main(args):
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    # get one batch of test data
-    imgs, lbls = next(iter(test_loader))
+    for i, batch in enumerate(test_loader):
+        if i == args.offset:
+            imgs, lbls = batch
+            break
+
     preds = predict_batch(model, imgs, device)
     
     # ground truth is one-hot, so take argmax to get class index
@@ -107,5 +110,6 @@ if __name__ == "__main__":
     p.add_argument("--weights", type=str, required=True, help="Path to best.pt")
     p.add_argument("--out-dir", type=str, default="./predictions")
     p.add_argument("--batch-size", type=int, default=4)
+    p.add_argument("--offset", type=int, default=0)
     args = p.parse_args()
     main(args)
