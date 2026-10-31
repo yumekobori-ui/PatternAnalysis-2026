@@ -2,7 +2,8 @@
 Loads best.pt, runs on a few test samples, saves overlays.
 
 Usage:
-    python predict.py --weights ./runs/unet2d_baseline/best.pt --out-dir ./predictions
+    python predict.py --model unet2d --weights ./runs/unet2d_baseline/best.pt --out-dir ./predictions_baseline
+    python predict.py --model improved_unet2d --weights ./runs/improved_unet2d/best.pt --out-dir ./predictions_improved
 """
 import argparse
 import os
@@ -13,7 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from dataset import build_dataloaders, NUM_CLASSES
-from modules import UNet2D
+from modules import UNet2D, ImprovedUNet2D
 
 CLASS_COLORS = np.array([
     [0.0, 0.0, 0.0], # 0 background, black
@@ -42,7 +43,13 @@ def main(args):
     print(f"Device: {device}")
 
     # load model
-    model = UNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
+    if args.model == "unet2d":
+        model = UNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
+    elif args.model == "improved_unet2d":
+        model = ImprovedUNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
+    else:
+        raise ValueError(f"unknown model: {args.model}")
+    
     if not os.path.exists(args.weights):
         raise FileNotFoundError(f"Could not find weights at {args.weights}")
     model.load_state_dict(torch.load(args.weights, map_location=device))
@@ -65,6 +72,9 @@ def main(args):
     # plot 4 samples
     num_samples = min(args.batch_size, len(imgs_np))
     fig, axes = plt.subplots(num_samples, 3, figsize=(12, 4 * num_samples))
+
+    if num_samples == 1:
+        axes = axes.reshape(1, 3)
     
     for i in range(num_samples):
         img = imgs_np[i]
@@ -93,6 +103,7 @@ def main(args):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
+    p.add_argument("--model", type=str, required=True, choices=["unet2d", "improved_unet2d"])
     p.add_argument("--weights", type=str, required=True, help="Path to best.pt")
     p.add_argument("--out-dir", type=str, default="./predictions")
     p.add_argument("--batch-size", type=int, default=4)
