@@ -37,13 +37,13 @@ The next planned experiment is to train the baseline for 50 epochs and then the 
 
 ## Dependencies and Reproducibility
 All models were trained and executed on the Rangpur HPC Cluster. The library version used were:
-python: 3.11
-torch: 2.14.1+cu130
-torchvision: 0.29.1+cu130
-nibabel: 5.4.2
-numpy: 2.4.6
-matplotlib: 3.11.2
-tqdm: 4.70.1
+- python: 3.11
+- torch: 2.14.1+cu130
+- torchvision: 0.29.1+cu130
+- nibabel: 5.4.2
+- numpy: 2.4.6
+- matplotlib: 3.11.2
+- tqdm: 4.70.1
 
 
 ### Reproducibility Instructions
@@ -63,11 +63,11 @@ python train.py --model unet2d --epochs 50 --batch-size 16 --out-dir ./runs/unet
 3. Train improved model:
 python train.py --model improved_unet2d --epochs 50 --batch-size 16 --out-dir ./runs/improved_unet2d
 
-4. Evaluate both models on test set
+4. Evaluate both models on test set:
 python evaluate.py --model unet2d --weights ./runs/unet2d_baseline/best.pt --out-json ./runs/eval_baseline.json
 python evaluate.py --model improved_unet2d --weights ./runs/improved_unet2d/best.pt --out-json ./runs/eval_improved.json
 
-5. Generate prediciion visualisations
+5. Generate prediciion visualisations:
 python predict.py --weights ./runs/improved_unet2d/best.pt --out-dir ./predictions
 
 
@@ -96,7 +96,7 @@ The data set was already split into training, validation and test sets. Training
 ## Investigation of the Open Research Dilemna
 ### Quantitative benchmark
 ![Dice and IoU Scores for Baseline and Improved](figures/dice_iou_comparison.png)
-Figure 6: Comparison of Dice and IoU scores between baseline and improved 2D U-Net models.
+Figure 4: Comparison of Dice and IoU scores between baseline and improved 2D U-Net models.
 
 The improved U-Net performed better than the baseline on all six classes for Dice and IoU scores. Most noticably, it performed significantly better for the minority classes where the improved U-Net increased Dice from 0.4091 to 0.5459 for rectum (33.4%) and 0.4235 to 0.4726 (11.6%) for prostate. The improved U-Net improved IoU from 0.3073 to 0.4631 for rectum (50.7%) and 0.3430 to 0.4100 for prostate (19.5%). This suggests that the residual blocks and batch normalsiation help the network to resolve the thin anatomical boundary between the rectum and surrounding tissue that the baseline struggles with. 
 
@@ -104,32 +104,34 @@ Both models scored high Dice and IoU for the body, bone and bladder classes (>0.
 
 ### Resource profiling
 ![Resource Profiling Table](figures/resource_profiling_table.png)
-Figure 7: Comparison of peak GPU VRAM, parameter count, and inference runtime/latency between baseline and improved. 
+Figure 5: Comparison of peak GPU VRAM, parameter count, and inference runtime/latency between baseline and improved. 
 
 Both models are efficient and extremlely computationally lightweight with a peak of 1.09GB VRAM at only 1.93ms per slice for the baseline and 2.44ms/slice for the improved model. The models would then be easily deployable on any modern GPU and be fast enough for clinical use. 
 
 ### Qualitative error autopsies on improved model
 ![False Positive](figures/fail_cases/false_positive.png)
-Figure 8: False Positive Case 1
+Figure 6: False Positive Case 1
 
 ![False Positive 2](figures/fail_cases/false_positive_2.png)
-Figure 9: False Positive Case 2
+Figure 7: False Positive Case 2
 
 ![Boundary Case](figures/fail_cases/boundary_case.png)
-Figure 10: Boundary Case
+Figure 8: Boundary Case
 
-Figure 8 and 9 show false positive cases in which the ground truth does not have any blue pixels (prostate), while the model incorrectly predicted it. The model may have learned a strong prior where the prostate appears near the bladder from training slices where both strutures exist, leading the model to produce false prediction of prostate pixels. False positives are harmful in radiotherapy as, if the prediction is not fully reviewed, it could cause the treatment plan to include non-target tissue in the high-dose region, delivering unintended radiation to healthy muscle.
+Figure 6 and 7 show false positive cases in which the ground truth does not have any blue pixels (prostate), while the model incorrectly predicted it. The model may have learned a strong prior where the prostate appears near the bladder from training slices where both strutures exist, leading the model to produce false prediction of prostate pixels. False positives are harmful in radiotherapy as, if the prediction is not fully reviewed, it could cause the treatment plan to include non-target tissue in the high-dose region, delivering unintended radiation to healthy muscle.
 
-The ground truth in Figure 10 shows a slight green region (rectum) to the right of the bladder while the prediction only contains a barely visible green dot, missing the majority of the true rectum. This is likely driven by the rectum being the second rarest class at 0.37%, and it's close promximity to the prostate. The model may have learned to under predict the rectum to minimise the overall weighted loss where missing a few pixels is less costly than the many false positives it would generate by over predicting.
+The ground truth in Figure 8 shows a slight green region (rectum) to the right of the bladder while the prediction only contains a barely visible green dot, missing the majority of the true rectum. This is likely driven by the rectum being the second rarest class at 0.37%, and it's close promximity to the prostate. The model may have learned to under predict the rectum to minimise the overall weighted loss where missing a few pixels is less costly than the many false positives it would generate by over predicting.
 
 The model fails at the thin boundary between soft-tissue structures such as the prostate and rectum. The baseline model also exhibited similar fail cases with a higher Dice penalty. This is attributed to the small structure size of the prostate and the absence of 3D context, where a 2D slice cannot properly segment the boundaries.
 
 ### Engineering recommendation
 The improved model does not reach the target Dice of 0.75 on prostate labels and exhibits potentially harmful failure modes with false-positive prostate predictions and rectum under-segmentation. Therefore, it should not be deployed for autonomous clinical use.
 
-The improved model has 4.5% more parameters and 26% more inference time than the baseline 2D U-Net architecture but improves mean Dice by 6.13%, prostate Dice by 11.6% and rectum Dice by 33.4%. This is a good trade off as the peak VRAM usage does not change and the inference time only increases by 0.51 ms/slice, which is negligible for real world clinical applications.
+However, trade off-analysis seems to favour the improved 2D U-Net architecture compared to the baseline mode. The improved model has 4.5% more parameters and 26% more inference time than the baseline 2D U-Net architecture but improves mean Dice by 6.13%, prostate Dice by 11.6% and rectum Dice by 33.4%. This is a good trade off as the peak VRAM usage does not change and the inference time only increases by 0.51 ms/slice, which is negligible for real world clinical applications.
 
-The model does have favourable Dice scores for body, bone and bladder classes. It could act as an assisstant that annotates and automatically generate contours for these classes, where a healthcare professional could then easily check over and verify. The model does not offer high accuracy for prostate and rectum predictions and they should therefore be left to the professionals for manual review. 
+The model does have favourable Dice scores for body (0.984), bone (0.930) and bladder (0.952) classes. These results suggest that it could be deployed as an assisstant that annotates and automatically generate high confidence contours for these strcutures. A healthcare professional could then quickly check over and verify these annotations.
+
+Prostate and rectum predictions remain unreliable at the anatomical boundaries, and should therefore not be automated and must be left to the professionals for manual review. 
 
 
 ## Artifical Intelligence Usage Disclosure
