@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+"""
+Baseline 2D U-Net architecture follows block structure described in Ronneberger et al (2015),
+and the improved model was adapted from Isensee et al (2017). 
+"""
 
 # Baseline 2D U-Net
 
@@ -57,7 +61,7 @@ class UNet2D(nn.Module):
             x = self.ups[i](x)  # up-conv
             skip = skips[i // 2]
             
-            # Pad if odd spatial dims
+            # pad if odd spatial dims
             if x.shape != skip.shape:
                 diff_h = skip.shape[2] - x.shape[2]
                 diff_w = skip.shape[3] - x.shape[3]

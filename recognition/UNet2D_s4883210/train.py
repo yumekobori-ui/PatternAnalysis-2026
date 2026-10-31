@@ -1,3 +1,11 @@
+"""
+Training script for baseline and improved 2D U-Net.
+
+Usage:
+    python train.py --model unet2d --epochs 50 --batch-size 16 --out-dir ./runs/unet2d_baseline
+    python train.py --model improved_unet2d --epochs 50 --batch-size 16 --out-dir ./runs/improved_unet2d
+"""
+
 import argparse
 import os
 import time
@@ -24,7 +32,7 @@ def soft_class_weights(freqs, device):
 
 def dice_per_class(logits, target, eps=1e-6):
     probs = torch.softmax(logits, dim=1)
-    dims = (0, 2, 3)
+    dims = (0, 2, 3) # sum over batch and spacial dimensions
     inter = (probs * target).sum(dims)
     union = probs.sum(dims) + target.sum(dims)
     return ((2 * inter + eps) / (union + eps)).cpu().numpy()
@@ -36,11 +44,14 @@ def train_one_epoch(model, loader, optim, criterion, device):
     for imgs, lbls in loader:
         imgs = imgs.to(device, non_blocking=True)
         lbls = lbls.to(device, non_blocking=True)
+
         logits = model(imgs)
         loss = criterion(logits, lbls)
+
         optim.zero_grad()
-        loss.backward()
-        optim.step()
+        loss.backward() # backpropogate to compute gradients
+        optim.step() # update weights
+
         total_loss += loss.item() * imgs.size(0)
         n += imgs.size(0)
     return total_loss / n
@@ -70,6 +81,7 @@ def main(args):
         num_workers=args.num_workers,
     )
 
+    # build model
     if args.model == "unet2d":
         model = UNet2D(in_channels=1, out_channels=NUM_CLASSES).to(device)
     elif args.model == "improved_unet2d":
@@ -81,6 +93,7 @@ def main(args):
     n_params = sum(p.numel() for p in model.parameters())
     print(f"Model: {args.model}, Parameters: {n_params:,}")
 
+    # cross entropy for class imbalance
     weights = soft_class_weights(CLASS_FREQS, device)
     print(f"Class weights: {[round(w, 3) for w in weights.tolist()]}")
     criterion = nn.CrossEntropyLoss(weight=weights)
@@ -96,6 +109,7 @@ def main(args):
         val_loss, val_dice = evaluate(model, loaders["val"], criterion, device)
         dt = time.time() - t0
 
+        # log metrics 
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
         history["val_dice"].append(val_dice.tolist())
@@ -107,11 +121,12 @@ def main(args):
               f"mean dice {mean_dice:.4f}  prostate dice {prostate_dice:.4f}  "
               f"({dt:.1f}s)")
 
+        # save model cp if pros_dice improves 
         if prostate_dice > best_dice:
             best_dice = prostate_dice
             torch.save(model.state_dict(), os.path.join(args.out_dir, "best.pt"))
             print(f"  → saved best.pt (prostate dice {prostate_dice:.4f})")
-
+        
         with open(os.path.join(args.out_dir, "history.json"), "w") as f:
             json.dump(history, f, indent=2)
 
